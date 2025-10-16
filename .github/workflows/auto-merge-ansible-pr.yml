@@ -20,7 +20,7 @@ jobs:
               return;
             }
 
-            const serviceLogin = "splunk-ansible-bot"; // 👈 your service account username
+            const serviceLogin = "asrivastavagithub"; // 👈 your service account username
             const sourceBranch = pr.head.ref;
             const targetBranch = pr.base.ref;
 
