@@ -1,0 +1,1 @@
+# gitops-flow-for-splunk-configuration
