@@ -1,6 +1,5 @@
 name: Auto-merge Ansible PRs
 on:
-  workflow_dispatch:
   pull_request:
     types: [opened, synchronize]
 
@@ -17,19 +16,42 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             if (!pr) {
-              core.info("No PR object.");
+              core.info("No PR object found.");
               return;
             }
-            const serviceLogin = "asrivastavagithub"; // change to your service account
+
+            const serviceLogin = "asrivastavagithub"; // 👈 change to your service account username
+
             if (pr.user && pr.user.login === serviceLogin) {
-              // Optionally run checks here (status, reviewers, etc.)
+              core.info(`Merging PR #${pr.number} from ${serviceLogin}...`);
+              
+              // Merge the PR
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.number,
                 merge_method: "squash"
               });
-              core.info(`Merged PR #${pr.number} from ${serviceLogin}`);
+
+              core.info(`✅ Successfully merged PR #${pr.number}`);
+
+              // Delete the source branch (if not from a fork)
+              const branchRef = pr.head.ref;
+              if (!pr.head.repo.fork) {
+                try {
+                  await github.rest.git.deleteRef({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ref: `heads/${branchRef}`,
+                  });
+                  core.info(`🧹 Deleted branch ${branchRef}`);
+                } catch (error) {
+                  core.warning(`Could not delete branch ${branchRef}: ${error.message}`);
+                }
+              } else {
+                core.info("PR came from a fork; skipping branch deletion.");
+              }
+
             } else {
-              core.info(`PR not from ${serviceLogin} — skipping`);
+              core.info(`PR not from ${serviceLogin} — skipping auto merge.`);
             }
