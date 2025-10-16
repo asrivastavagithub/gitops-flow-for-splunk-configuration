@@ -1,7 +1,7 @@
 name: Auto-merge Ansible PRs
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
 
 jobs:
   auto-merge:
@@ -10,7 +10,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Auto-merge PRs from service account
+      - name: Auto-merge PRs from Ansible service account (jira-* branches)
         uses: actions/github-script@v7
         with:
           script: |
@@ -20,10 +20,24 @@ jobs:
               return;
             }
 
-            const serviceLogin = "asrivastavagithub"; // 👈 change to your service account username
+            const serviceLogin = "splunk-ansible-bot"; // 👈 your service account username
+            const sourceBranch = pr.head.ref;
+            const targetBranch = pr.base.ref;
 
+            // Regex pattern for allowed feature branches: jira-XXXX-something
+            const jiraPattern = /^jira-\d+-/i;
+
+            core.info(`Evaluating PR #${pr.number} from branch: ${sourceBranch} -> ${targetBranch}`);
+
+            // Check: source branch matches jira-* and base is main
+            if (!jiraPattern.test(sourceBranch) || targetBranch !== "main") {
+              core.info(`Skipping: Branch '${sourceBranch}' does not match pattern or target is not 'main'.`);
+              return;
+            }
+
+            // Check: PR author is the Ansible bot account
             if (pr.user && pr.user.login === serviceLogin) {
-              core.info(`Merging PR #${pr.number} from ${serviceLogin}...`);
+              core.info(`✅ Matches pattern and service account (${serviceLogin}). Proceeding with merge...`);
               
               // Merge the PR
               await github.rest.pulls.merge({
@@ -35,23 +49,22 @@ jobs:
 
               core.info(`✅ Successfully merged PR #${pr.number}`);
 
-              // Delete the source branch (if not from a fork)
-              const branchRef = pr.head.ref;
+              // Delete branch after merge (if not from a fork)
               if (!pr.head.repo.fork) {
                 try {
                   await github.rest.git.deleteRef({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    ref: `heads/${branchRef}`,
+                    ref: `heads/${sourceBranch}`,
                   });
-                  core.info(`🧹 Deleted branch ${branchRef}`);
+                  core.info(`🧹 Deleted branch ${sourceBranch}`);
                 } catch (error) {
-                  core.warning(`Could not delete branch ${branchRef}: ${error.message}`);
+                  core.warning(`⚠️ Could not delete branch ${sourceBranch}: ${error.message}`);
                 }
               } else {
                 core.info("PR came from a fork; skipping branch deletion.");
               }
 
             } else {
-              core.info(`PR not from ${serviceLogin} — skipping auto merge.`);
+              core.info(`Skipping: PR author is not ${serviceLogin}`);
             }
