@@ -2,6 +2,8 @@ name: Auto-merge Ansible PRs
 on:
   pull_request:
     types: [opened]
+    branches:
+      - 'jira-*'
 
 jobs:
   auto-merge:
