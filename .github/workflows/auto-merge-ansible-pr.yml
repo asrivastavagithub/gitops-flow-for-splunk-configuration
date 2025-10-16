@@ -2,9 +2,7 @@ name: Auto-merge Ansible PRs
 on:
   workflow_dispatch:
   pull_request:
-    types: [opened]
-    branches:
-      - 'jira-*'
+    types: [opened, synchronize]
 
 jobs:
   auto-merge:
